@@ -1721,7 +1721,7 @@
         .compare-bar-text {
             font-size: 14px;
             font-weight: bold;
-            color: var(--text-color);
+            color: var(--text-main);
         }
         .btn-clear-compare {
             background: transparent;
@@ -1733,8 +1733,8 @@
             font-size: 12px;
         }
         .btn-clear-compare:hover {
-            background: var(--bg-color);
-            color: var(--text-color);
+            background: var(--bg-panel);
+            color: var(--text-main);
         }
         .btn-start-compare {
             background: #27ae60;
@@ -1769,7 +1769,7 @@
         .comparison-chart-container h3 {
             font-size: 16px;
             margin-bottom: 15px;
-            color: var(--text-color);
+            color: var(--text-main);
             border-bottom: 1px solid var(--border-color);
             padding-bottom: 8px;
         }
@@ -3789,7 +3789,7 @@
                         intersect: false,
                     },
                     plugins: {
-                        legend: { position: 'top', labels: { color: getComputedStyle(document.documentElement).getPropertyValue('--text-color') } },
+                        legend: { position: 'top', labels: { color: getComputedStyle(document.documentElement).getPropertyValue('--text-main') } },
                         tooltip: {
                             callbacks: {
                                 label: function(context) {
@@ -3807,12 +3807,12 @@
                     },
                     scales: {
                         x: {
-                            title: { display: true, text: 'Prompt Length (Tokens)', color: getComputedStyle(document.documentElement).getPropertyValue('--text-color') },
+                            title: { display: true, text: 'Prompt Length (Tokens)', color: getComputedStyle(document.documentElement).getPropertyValue('--text-main') },
                             ticks: { color: getComputedStyle(document.documentElement).getPropertyValue('--text-muted') },
                             grid: { color: getComputedStyle(document.documentElement).getPropertyValue('--border-color') }
                         },
                         y: {
-                            title: { display: true, text: yAxisTitle, color: getComputedStyle(document.documentElement).getPropertyValue('--text-color') },
+                            title: { display: true, text: yAxisTitle, color: getComputedStyle(document.documentElement).getPropertyValue('--text-main') },
                             ticks: { color: getComputedStyle(document.documentElement).getPropertyValue('--text-muted') },
                             grid: { color: getComputedStyle(document.documentElement).getPropertyValue('--border-color') },
                             beginAtZero: true
