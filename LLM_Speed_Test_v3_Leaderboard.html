@@ -597,6 +597,11 @@
             gap: 8px;
         }
 
+        .model-tag-bar.collapsed {
+            max-height: 84px !important;
+            overflow: hidden !important;
+        }
+
         .model-tag {
             display: inline-flex;
             align-items: center;
@@ -1655,10 +1660,13 @@
 
         <div id="modelTagsPanel" class="model-tags-panel" style="display:none;">
             <div class="model-tags-header">
-                <div class="model-tags-title">快速切换模型</div>
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <div class="model-tags-title">快速切换模型</div>
+                    <button id="toggleModelTagsBtn" class="entry-link-btn" style="font-size: 12px; padding: 2px 8px; border-radius: 4px; cursor: pointer;" type="button" onclick="toggleModelTags()">展开 ⬇️</button>
+                </div>
                 <div id="modelTagsSubtitle" class="model-tags-subtitle">只显示记录数大于等于 3 条的模型，点击词条即可切换排行榜</div>
             </div>
-            <div id="modelTagBar" class="model-tag-bar"></div>
+            <div id="modelTagBar" class="model-tag-bar collapsed"></div>
         </div>
 
         <div class="tabs">
@@ -3342,6 +3350,20 @@
             forceDesktopView = !manualMobileView;
             applyManualViewMode();
             syncMobileFilterPanel(true);
+        }
+
+        function toggleModelTags() {
+            const bar = document.getElementById('modelTagBar');
+            const btn = document.getElementById('toggleModelTagsBtn');
+            if (bar && btn) {
+                if (bar.classList.contains('collapsed')) {
+                    bar.classList.remove('collapsed');
+                    btn.innerHTML = '收起 ⬆️';
+                } else {
+                    bar.classList.add('collapsed');
+                    btn.innerHTML = '展开 ⬇️';
+                }
+            }
         }
 
         function setMobileFilterCollapsed(collapsed) {
