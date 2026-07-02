@@ -1416,6 +1416,21 @@
                 labelOutputLength: '期望输出长度',
                 labelConcurrency: '并发数',
                 labelTimeout: '请求超时 (ms)',
+                labelTemperatureForm: 'Temperature (温度/随机性)',
+                labelTopPForm: 'Top P (核采样)',
+                labelPresencePenaltyForm: 'Presence Penalty (存在惩罚)',
+                labelFrequencyPenaltyForm: 'Frequency Penalty (频率惩罚)',
+                tipMinLength: '测试时构造提示词的起始长度。',
+                tipMaxLength: '测试时构造提示词的最大长度。',
+                tipStep: '每次递增的长度。',
+                tipStepMultiplier: '如果大于1，则按倍数递增（例如倍数2，起始128：128, 256, 512...）。如果为1则按步长线性递增。',
+                tipOutputLength: '期望模型输出的Token数量。',
+                tipConcurrency: '同时发送的请求数量，用于测试并发处理能力。',
+                tipTimeout: 'API请求的最大等待时间，超过将视为失败。',
+                tipTemperature: '控制生成文本的随机性。值越高，文本越随机（0.0表示确定性，1.0表示较高随机性）。',
+                tipTopP: '核采样，控制生成文本的多样性。',
+                tipPresencePenalty: '存在惩罚，正值会根据新标记是否出现在文本中来对其进行惩罚，从而增加模型讨论新主题的可能性。',
+                tipFrequencyPenalty: '频率惩罚，正值会根据新标记在文本中迄今为止的频率对其进行惩罚，从而降低模型逐字重复同一行的可能性。',
                 sectionExecTest: '执行测试',
                 btnStartTest: '开始测试',
                 btnStopTest: '停止测试',
@@ -1685,6 +1700,21 @@
                 labelOutputLength: 'Expected Output Length',
                 labelConcurrency: 'Concurrency',
                 labelTimeout: 'Request Timeout (ms)',
+                labelTemperatureForm: 'Temperature',
+                labelTopPForm: 'Top P',
+                labelPresencePenaltyForm: 'Presence Penalty',
+                labelFrequencyPenaltyForm: 'Frequency Penalty',
+                tipMinLength: 'The starting length of the prompt for testing.',
+                tipMaxLength: 'The maximum length of the prompt for testing.',
+                tipStep: 'The length to increment by each time.',
+                tipStepMultiplier: 'If > 1, increments exponentially (e.g., multiplier 2, start 128: 128, 256, 512...). If 1, increments linearly by step.',
+                tipOutputLength: 'Expected number of output tokens.',
+                tipConcurrency: 'Number of requests sent simultaneously to test concurrent processing capabilities.',
+                tipTimeout: 'Maximum wait time for API requests, exceeding this is considered a failure.',
+                tipTemperature: 'Controls the randomness of generated text. Higher values mean more randomness (0.0 is deterministic, 1.0 is highly random).',
+                tipTopP: 'Nucleus sampling, controls the diversity of generated text.',
+                tipPresencePenalty: 'Positive values penalize new tokens based on whether they appear in the text so far, increasing the likelihood of talking about new topics.',
+                tipFrequencyPenalty: 'Positive values penalize new tokens based on their existing frequency in the text, decreasing the likelihood of verbatim repetition.',
                 sectionExecTest: 'Execute Test',
                 btnStartTest: 'Start Test',
                 btnStopTest: 'Stop Test',
@@ -2011,13 +2041,17 @@
             document.getElementById('runCommand').placeholder = t.placeholderRunCommand;
             document.getElementById('labelSaveDetail').textContent = t.labelSaveDetail;
             document.getElementById('noteSaveDetail').textContent = t.noteSaveDetail;
-            document.querySelector('label[for="minLength"]').textContent = t.labelMinLength;
-            document.querySelector('label[for="maxLength"]').textContent = t.labelMaxLength;
-            document.querySelector('label[for="step"]').textContent = t.labelStep;
-            document.querySelector('label[for="stepMultiplier"]').innerHTML = t.labelStepMultiplier;
-            document.querySelector('label[for="outputLength"]').textContent = t.labelOutputLength;
-            document.querySelector('label[for="concurrency"]').textContent = t.labelConcurrency;
-            document.querySelector('label[for="timeout"]').textContent = t.labelTimeout;
+            const lblMin = document.querySelector('label[for="minLength"]'); lblMin.textContent = t.labelMinLength; lblMin.title = t.tipMinLength; lblMin.style.cursor = 'help'; lblMin.style.textDecoration = 'underline dotted #888';
+            const lblMax = document.querySelector('label[for="maxLength"]'); lblMax.textContent = t.labelMaxLength; lblMax.title = t.tipMaxLength; lblMax.style.cursor = 'help'; lblMax.style.textDecoration = 'underline dotted #888';
+            const lblStep = document.querySelector('label[for="step"]'); lblStep.textContent = t.labelStep; lblStep.title = t.tipStep; lblStep.style.cursor = 'help'; lblStep.style.textDecoration = 'underline dotted #888';
+            const lblStepMul = document.querySelector('label[for="stepMultiplier"]'); lblStepMul.innerHTML = t.labelStepMultiplier; lblStepMul.title = t.tipStepMultiplier; lblStepMul.style.cursor = 'help'; lblStepMul.style.textDecoration = 'underline dotted #888';
+            const lblOutLen = document.querySelector('label[for="outputLength"]'); lblOutLen.textContent = t.labelOutputLength; lblOutLen.title = t.tipOutputLength; lblOutLen.style.cursor = 'help'; lblOutLen.style.textDecoration = 'underline dotted #888';
+            const lblConc = document.querySelector('label[for="concurrency"]'); lblConc.textContent = t.labelConcurrency; lblConc.title = t.tipConcurrency; lblConc.style.cursor = 'help'; lblConc.style.textDecoration = 'underline dotted #888';
+            const lblTime = document.querySelector('label[for="timeout"]'); lblTime.textContent = t.labelTimeout; lblTime.title = t.tipTimeout; lblTime.style.cursor = 'help'; lblTime.style.textDecoration = 'underline dotted #888';
+            const lblTemp = document.querySelector('label[for="temperatureInput"]'); lblTemp.textContent = t.labelTemperatureForm; lblTemp.title = t.tipTemperature; lblTemp.style.cursor = 'help'; lblTemp.style.textDecoration = 'underline dotted #888';
+            const lblTop = document.querySelector('label[for="topPInput"]'); lblTop.textContent = t.labelTopPForm; lblTop.title = t.tipTopP; lblTop.style.cursor = 'help'; lblTop.style.textDecoration = 'underline dotted #888';
+            const lblPres = document.querySelector('label[for="presencePenaltyInput"]'); lblPres.textContent = t.labelPresencePenaltyForm; lblPres.title = t.tipPresencePenalty; lblPres.style.cursor = 'help'; lblPres.style.textDecoration = 'underline dotted #888';
+            const lblFreq = document.querySelector('label[for="frequencyPenaltyInput"]'); lblFreq.textContent = t.labelFrequencyPenaltyForm; lblFreq.title = t.tipFrequencyPenalty; lblFreq.style.cursor = 'help'; lblFreq.style.textDecoration = 'underline dotted #888';
             document.querySelector('label[for="importFiles"]').textContent = t.labelImportFiles;
 
             // 更新按钮
