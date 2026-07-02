@@ -1875,7 +1875,7 @@
                 </div>
                 <div class="tool-group" style="min-width:280px;">
                     <label for="searchInput">搜索</label>
-                    <input type="text" id="searchInput" placeholder="搜索 识别码/用户/模型/ID"
+                    <input type="text" id="searchInput" placeholder="搜索 识别码/用户/模型/启动命令/ID"
                         onkeydown="if(event.key==='Enter') applyLeaderboardFilters()">
                 </div>
                 <button class="tab-btn" onclick="applyLeaderboardFilters()" style="padding:6px 12px;">搜索 / 筛选</button>
@@ -3057,7 +3057,7 @@
                 } else {
                     const eq = encodeURIComponent(q);
                     const like = encodeURIComponent(`%${q}%`);
-                    params.push(`or=(user_code.eq.${eq},nickname.ilike.${like},model_name.ilike.${like})`);
+                    params.push(`or=(user_code.eq.${eq},nickname.ilike.${like},model_name.ilike.${like},run_command.ilike.${like})`);
                 }
             }
 
