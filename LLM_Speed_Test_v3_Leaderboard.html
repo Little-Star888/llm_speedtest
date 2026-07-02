@@ -1940,6 +1940,8 @@
                         <th style="width:80px;text-align:center;">排名</th>
                         <th style="width:150px;text-align:left;padding-left:20px;">用户</th>
                         <th style="width:120px;text-align:center;">总测速数</th>
+                        <th style="width:120px;text-align:right;">最高 Prefill</th>
+                        <th style="width:120px;text-align:right;padding-right:20px;">最高 Decode</th>
                         <th style="text-align:left;padding-left:20px;">常测模型 (Top 3)</th>
                     </tr>
                 </thead>
@@ -3968,18 +3970,23 @@
                         let user = (row.nickname || row.user_code || '').trim();
                         if (!user) user = '匿名用户';
                         if (!userStats[user]) {
-                            userStats[user] = { total: 0, models: {}, userCode: row.user_code || '' };
+                            userStats[user] = { total: 0, models: {}, userCode: row.user_code || '', maxPrefill: 0, maxDecode: 0 };
                         }
                         userStats[user].total += 1;
                         const model = (row.model_name || '未知模型').trim() || '未知模型';
                         userStats[user].models[model] = (userStats[user].models[model] || 0) + 1;
+                        
+                        const p = getRowMetricValue(row, 'max_prefill_speed');
+                        if (Number.isFinite(p) && p > userStats[user].maxPrefill) userStats[user].maxPrefill = p;
+                        const d = getRowMetricValue(row, 'max_decode_speed');
+                        if (Number.isFinite(d) && d > userStats[user].maxDecode) userStats[user].maxDecode = d;
                     });
 
                     const contributors = Object.entries(userStats).map(([user, stats]) => {
                         const topModels = Object.entries(stats.models)
                             .sort((a, b) => b[1] - a[1])
                             .slice(0, 3);
-                        return { user, total: stats.total, topModels, userCode: stats.userCode };
+                        return { user, total: stats.total, topModels, userCode: stats.userCode, maxPrefill: stats.maxPrefill, maxDecode: stats.maxDecode };
                     }).sort((a, b) => b.total - a.total);
 
                     const tbodyContrib = document.getElementById('contributorsBody');
@@ -4016,10 +4023,15 @@
                             return `<div class="contributor-model-tag">${mHtml}<span class="contributor-model-count">(${m[1]})</span></div>`
                         }).join('');
 
+                        const prefillHtml = c.maxPrefill > 0 ? c.maxPrefill.toFixed(1) : '-';
+                        const decodeHtml = c.maxDecode > 0 ? c.maxDecode.toFixed(1) : '-';
+
                         tr.innerHTML = `
                             <td style="text-align:center;font-weight:bold;color:var(--text-muted);">${rankHtml}</td>
                             <td style="text-align:left;padding-left:20px;font-weight:bold;">${userDisplayHtml}</td>
                             <td style="text-align:center;font-weight:bold;color:#98c379;">${c.total}</td>
+                            <td style="text-align:right;font-family:monospace;color:var(--text-muted);">${prefillHtml}</td>
+                            <td style="text-align:right;padding-right:20px;font-family:monospace;color:var(--text-muted);">${decodeHtml}</td>
                             <td style="text-align:left;padding-left:20px;">
                                 <div class="contributor-model-list">${modelsHtml}</div>
                             </td>
