@@ -1026,7 +1026,8 @@
             style="text-align: center; margin-bottom: 20px; font-size: 15px; background: #fffbf0; padding: 10px; border-radius: 5px; border: 1px solid #f39c12; color: #d35400;">
             ❤️ 感谢大家使用！开源不易，如果觉得本工具好用，请帮忙到 <a href="https://github.com/gengchaogit/llm_speedtest" target="_blank"
                 style="color: var(--primary-color); font-weight: bold; text-decoration: underline;">GitHub 仓库</a> 随手点个
-            ⭐️ Star 支持一下！非常感谢！🙏
+            ⭐️ Star 支持一下！非常感谢！🙏 <br>
+            <a href="LLM_Speed_Test_v3_Leaderboard.html" target="_blank" style="color: var(--primary-color); font-weight: bold; text-decoration: underline; display: inline-block; margin-top: 8px;">查看测速排行榜 🏆</a>
         </div>
         <div class="api-selector">
             <div class="api-option active" data-type="openai">OpenAI兼容接口</div>
@@ -1327,6 +1328,21 @@
                 labelOutputLength: '期望输出长度',
                 labelConcurrency: '并发数',
                 labelTimeout: '请求超时 (ms)',
+                labelTemperatureForm: 'Temperature (温度/随机性)',
+                labelTopPForm: 'Top P (核采样)',
+                labelPresencePenaltyForm: 'Presence Penalty (存在惩罚)',
+                labelFrequencyPenaltyForm: 'Frequency Penalty (频率惩罚)',
+                tipMinLength: '测试时构造提示词的起始长度。',
+                tipMaxLength: '测试时构造提示词的最大长度。',
+                tipStep: '每次递增的长度。',
+                tipStepMultiplier: '如果大于1，则按倍数递增（例如倍数2，起始128：128, 256, 512...）。如果为1则按步长线性递增。',
+                tipOutputLength: '期望模型输出的Token数量。',
+                tipConcurrency: '同时发送的请求数量，用于测试并发处理能力。',
+                tipTimeout: 'API请求的最大等待时间，超过将视为失败。',
+                tipTemperature: '【温度 / 随机性】\n控制生成文本的随机性和创造性。\n• 较低值 (如 0.2): 回答更集中、确定性更高，适合代码、数据提取等严谨任务。\n• 较高值 (如 0.8): 回答更多样、更具创造性，适合写作、头脑风暴等任务。',
+                tipTopP: '【核采样 / 局部随机性】\n另一种控制随机性的方法，通常与 Temperature 二选一调整。\n• 较低值 (如 0.1): 只考虑概率前 10% 的可能词汇，回答非常稳定。\n• 较高值 (如 0.9): 考虑更广泛的词汇，增加回答的丰富度。',
+                tipPresencePenalty: '【存在惩罚 / 主题新鲜度】\n根据词汇是否已经出现在文本中来进行惩罚。\n• 正值: 鼓励模型探讨新主题，避免一直在这个话题上打转。\n• 示例: 设为 1.0 可以让模型更倾向于拓展新内容，而不是重复已有的论点。',
+                tipFrequencyPenalty: '【频率惩罚 / 词汇多样性】\n根据词汇在文本中出现的频率来进行惩罚。\n• 正值: 降低模型逐字重复同一句话或同一个词的概率。\n• 示例: 设为 1.0 可以有效减少车轱辘话，让用词更加丰富多样。',
                 sectionExecTest: '执行测试',
                 btnStartTest: '开始测试',
                 btnStopTest: '停止测试',
@@ -1617,6 +1633,21 @@
                 labelOutputLength: 'Expected Output Length',
                 labelConcurrency: 'Concurrency',
                 labelTimeout: 'Request Timeout (ms)',
+                labelTemperatureForm: 'Temperature',
+                labelTopPForm: 'Top P',
+                labelPresencePenaltyForm: 'Presence Penalty',
+                labelFrequencyPenaltyForm: 'Frequency Penalty',
+                tipMinLength: 'The starting length of the prompt for testing.',
+                tipMaxLength: 'The maximum length of the prompt for testing.',
+                tipStep: 'The length to increment by each time.',
+                tipStepMultiplier: 'If > 1, increments exponentially (e.g., multiplier 2, start 128: 128, 256, 512...). If 1, increments linearly by step.',
+                tipOutputLength: 'Expected number of output tokens.',
+                tipConcurrency: 'Number of requests sent simultaneously to test concurrent processing capabilities.',
+                tipTimeout: 'Maximum wait time for API requests, exceeding this is considered a failure.',
+                tipTemperature: '[Temperature]\nControls the randomness and creativity of the generated text.\n• Low (e.g., 0.2): More focused and deterministic, ideal for coding or data extraction.\n• High (e.g., 0.8): More diverse and creative, ideal for writing or brainstorming.',
+                tipTopP: '[Top P / Nucleus Sampling]\nAn alternative to Temperature, usually only one is adjusted.\n• Low (e.g., 0.1): Only considers top 10% probable tokens, highly stable.\n• High (e.g., 0.9): Considers a wider range of tokens, increasing richness.',
+                tipPresencePenalty: '[Presence Penalty]\nPenalizes new tokens based on whether they appear in the text so far.\n• Positive values: Encourages the model to talk about new topics.\n• Example: Setting to 1.0 makes the model more likely to expand on new content rather than repeating existing points.',
+                tipFrequencyPenalty: '[Frequency Penalty]\nPenalizes new tokens based on their existing frequency in the text.\n• Positive values: Decreases the likelihood of verbatim repetition of the same words or lines.\n• Example: Setting to 1.0 effectively reduces circular talk and makes vocabulary more diverse.',
                 sectionExecTest: 'Execute Test',
                 btnStartTest: 'Start Test',
                 btnStopTest: 'Stop Test',
@@ -1936,13 +1967,17 @@
             document.getElementById('runCommand').placeholder = t.placeholderRunCommand;
             document.getElementById('labelSaveDetail').textContent = t.labelSaveDetail;
             document.getElementById('noteSaveDetail').textContent = t.noteSaveDetail;
-            document.querySelector('label[for="minLength"]').textContent = t.labelMinLength;
-            document.querySelector('label[for="maxLength"]').textContent = t.labelMaxLength;
-            document.querySelector('label[for="step"]').textContent = t.labelStep;
-            document.querySelector('label[for="stepMultiplier"]').innerHTML = t.labelStepMultiplier;
-            document.querySelector('label[for="outputLength"]').textContent = t.labelOutputLength;
-            document.querySelector('label[for="concurrency"]').textContent = t.labelConcurrency;
-            document.querySelector('label[for="timeout"]').textContent = t.labelTimeout;
+            const lblMin = document.querySelector('label[for="minLength"]'); lblMin.textContent = t.labelMinLength; lblMin.title = t.tipMinLength; lblMin.style.cursor = 'help'; lblMin.style.textDecoration = 'underline dotted #888';
+            const lblMax = document.querySelector('label[for="maxLength"]'); lblMax.textContent = t.labelMaxLength; lblMax.title = t.tipMaxLength; lblMax.style.cursor = 'help'; lblMax.style.textDecoration = 'underline dotted #888';
+            const lblStep = document.querySelector('label[for="step"]'); lblStep.textContent = t.labelStep; lblStep.title = t.tipStep; lblStep.style.cursor = 'help'; lblStep.style.textDecoration = 'underline dotted #888';
+            const lblStepMul = document.querySelector('label[for="stepMultiplier"]'); lblStepMul.innerHTML = t.labelStepMultiplier; lblStepMul.title = t.tipStepMultiplier; lblStepMul.style.cursor = 'help'; lblStepMul.style.textDecoration = 'underline dotted #888';
+            const lblOutLen = document.querySelector('label[for="outputLength"]'); lblOutLen.textContent = t.labelOutputLength; lblOutLen.title = t.tipOutputLength; lblOutLen.style.cursor = 'help'; lblOutLen.style.textDecoration = 'underline dotted #888';
+            const lblConc = document.querySelector('label[for="concurrency"]'); lblConc.textContent = t.labelConcurrency; lblConc.title = t.tipConcurrency; lblConc.style.cursor = 'help'; lblConc.style.textDecoration = 'underline dotted #888';
+            const lblTime = document.querySelector('label[for="timeout"]'); lblTime.textContent = t.labelTimeout; lblTime.title = t.tipTimeout; lblTime.style.cursor = 'help'; lblTime.style.textDecoration = 'underline dotted #888';
+            const lblTemp = document.querySelector('label[for="temperatureInput"]'); lblTemp.textContent = t.labelTemperatureForm; lblTemp.title = t.tipTemperature; lblTemp.style.cursor = 'help'; lblTemp.style.textDecoration = 'underline dotted #888';
+            const lblTop = document.querySelector('label[for="topPInput"]'); lblTop.textContent = t.labelTopPForm; lblTop.title = t.tipTopP; lblTop.style.cursor = 'help'; lblTop.style.textDecoration = 'underline dotted #888';
+            const lblPres = document.querySelector('label[for="presencePenaltyInput"]'); lblPres.textContent = t.labelPresencePenaltyForm; lblPres.title = t.tipPresencePenalty; lblPres.style.cursor = 'help'; lblPres.style.textDecoration = 'underline dotted #888';
+            const lblFreq = document.querySelector('label[for="frequencyPenaltyInput"]'); lblFreq.textContent = t.labelFrequencyPenaltyForm; lblFreq.title = t.tipFrequencyPenalty; lblFreq.style.cursor = 'help'; lblFreq.style.textDecoration = 'underline dotted #888';
             document.querySelector('label[for="importFiles"]').textContent = t.labelImportFiles;
 
             // 更新按钮
