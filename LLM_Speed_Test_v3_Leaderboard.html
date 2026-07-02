@@ -812,7 +812,7 @@
             display: inline-flex;
             align-items: center;
             justify-content: flex-start;
-            gap: 3px;
+            gap: 2px;
             white-space: nowrap;
         }
 
@@ -1079,17 +1079,17 @@
 
             .col-actions {
                 width: 16%;
-                min-width: 76px;
+                min-width: 84px !important;
                 text-align: center;
                 position: sticky;
-                right: 30px;
+                right: 32px !important;
                 background: var(--bg-panel);
                 z-index: 3;
                 white-space: nowrap;
             }
             .col-compare {
-                width: 30px;
-                min-width: 30px;
+                width: 32px !important;
+                min-width: 32px !important;
                 text-align: center;
                 position: sticky;
                 right: 0;
@@ -1435,17 +1435,17 @@
 
         body.force-mobile-view .col-actions {
             width: 16%;
-            min-width: 76px;
+            min-width: 84px !important;
             text-align: center;
             position: sticky;
-            right: 30px;
+            right: 32px !important;
             background: var(--bg-panel);
             z-index: 3;
             white-space: nowrap;
         }
         body.force-mobile-view .col-compare {
-            width: 30px;
-            min-width: 30px;
+            width: 32px !important;
+            min-width: 32px !important;
             text-align: center;
             position: sticky;
             right: 0;
@@ -1682,9 +1682,12 @@
     
         /* Comparison Mode CSS */
         .col-compare {
-            width: 40px;
-            min-width: 40px;
+            width: 36px;
+            min-width: 36px;
             text-align: center;
+            box-sizing: border-box;
+            padding-left: 4px !important;
+            padding-right: 4px !important;
         }
         .compare-checkbox {
             cursor: pointer;
@@ -1886,7 +1889,7 @@
                             </button>
                         </th>
                         <th class="col-actions">操作</th>
-                        <th class="col-compare" style="width: 40px;"><span id="thCompareText" style="font-size: 11px; color: var(--text-muted);">对比</span></th>
+                        <th class="col-compare"><span id="thCompareText" style="font-size: 11px; color: var(--text-muted);">对比</span></th>
                     </tr>
                 </thead>
                 <tbody id="resultsBody">
