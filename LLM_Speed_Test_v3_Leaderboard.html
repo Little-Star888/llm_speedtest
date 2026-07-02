@@ -1094,7 +1094,8 @@
             }
 
             .btn-copy-link {
-                display: none;
+                font-size: 10px;
+                padding: 4px 5px;
             }
 
             #paginationControls {
@@ -1437,7 +1438,8 @@
         }
 
         body.force-mobile-view .btn-copy-link {
-            display: none;
+            font-size: 10px;
+            padding: 3px 4px;
         }
 
         body.force-desktop-view {
@@ -3662,7 +3664,7 @@
                     <td class="col-concurrency">${row.concurrency}</td>
                     <td class="col-prefill" style="color:#98c379; font-weight:bold;">${prefillText}</td>
                     <td class="col-decode" style="color:#c678dd; font-weight:bold;">${decodeText}</td>
-                    <td class="col-actions"><div class="row-actions"><button class="btn-detail" onclick="viewDetails('${row.id}')">查看图表</button><button class="btn-copy-link" onclick="copyShareUrl('${encodeURIComponent(row.id)}', this)">复制链接</button></div></td>
+                    <td class="col-actions"><div class="row-actions"><button class="btn-detail" onclick="viewDetails('${row.id}')">查看</button><button class="btn-copy-link" onclick="copyShareUrl('${encodeURIComponent(row.id)}', this)">分享</button></div></td>
                 `;
                     tbody.appendChild(tr);
                 });
