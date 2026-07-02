@@ -1865,6 +1865,14 @@
                     <label for="hardwareFilterInput">硬件关键词</label>
                     <input type="text" id="hardwareFilterInput" placeholder="例如 4090 / H100">
                 </div>
+                <div class="tool-group" style="flex-direction:row; align-items:flex-end; gap:12px; margin-right:10px; padding-bottom: 4px;">
+                    <label style="display:flex; align-items:center; gap:4px; margin-bottom:0; cursor:pointer; user-select:none; color:var(--text-color); font-size: 13px;">
+                        <input type="checkbox" id="hasRunCommandCheckbox" style="margin:0; cursor:pointer;" onchange="applyLeaderboardFilters()"> 有启动命令
+                    </label>
+                    <label style="display:flex; align-items:center; gap:4px; margin-bottom:0; cursor:pointer; user-select:none; color:var(--text-color); font-size: 13px;">
+                        <input type="checkbox" id="concurrencyOneCheckbox" style="margin:0; cursor:pointer;" onchange="applyLeaderboardFilters()"> 并发1
+                    </label>
+                </div>
                 <div class="tool-group" style="min-width:280px;">
                     <label for="searchInput">搜索</label>
                     <input type="text" id="searchInput" placeholder="搜索 识别码/用户/模型/ID"
@@ -1999,6 +2007,8 @@
         let currentMinDecode = 0;
         let currentMinPrefill = 0;
         let currentHardwareKeyword = '';
+        let currentHasRunCommand = false;
+        let currentConcurrencyOne = false;
         let resultsDataMap = {}; // store details for chart generation
         let currentFetchController = null; // To prevent race conditions on tab switch
         let modelTagFetchController = null;
@@ -3018,6 +3028,13 @@
             if (currentHardwareKeyword) {
                 params.push(`hardware=ilike.${encodeURIComponent('*' + currentHardwareKeyword + '*')}`);
             }
+            if (currentHasRunCommand) {
+                params.push('run_command=not.is.null');
+                params.push('run_command=neq.');
+            }
+            if (currentConcurrencyOne) {
+                params.push('concurrency=eq.1');
+            }
             return params;
         }
 
@@ -3295,6 +3312,12 @@
                 const prefill = getRowMetricValue(row, 'max_prefill_speed');
                 if (!Number.isFinite(prefill) || prefill < currentMinPrefill) return false;
             }
+            if (currentHasRunCommand) {
+                if (typeof row.run_command !== 'string' || !row.run_command.trim()) return false;
+            }
+            if (currentConcurrencyOne) {
+                if (row.concurrency !== 1) return false;
+            }
             return true;
         }
 
@@ -3561,6 +3584,8 @@
             currentMinDecode = parseFloat(document.getElementById('minDecodeInput')?.value || '0') || 0;
             currentMinPrefill = parseFloat(document.getElementById('minPrefillInput')?.value || '0') || 0;
             currentHardwareKeyword = (document.getElementById('hardwareFilterInput')?.value || '').trim();
+            currentHasRunCommand = document.getElementById('hasRunCommandCheckbox')?.checked || false;
+            currentConcurrencyOne = document.getElementById('concurrencyOneCheckbox')?.checked || false;
 
             const searchQuery = (document.getElementById('searchInput')?.value || '').trim();
             refreshModelTags();
@@ -3587,6 +3612,13 @@
             currentMinPrefill = 0;
             currentHardwareKeyword = '';
             currentTargetSearch = null;
+            currentHasRunCommand = false;
+            currentConcurrencyOne = false;
+            
+            const hasRunCmdEl = document.getElementById('hasRunCommandCheckbox');
+            if (hasRunCmdEl) hasRunCmdEl.checked = false;
+            const concOneEl = document.getElementById('concurrencyOneCheckbox');
+            if (concOneEl) concOneEl.checked = false;
             const pageEl = document.getElementById('pageSizeSelect');
             const minDecodeEl = document.getElementById('minDecodeInput');
             const minPrefillEl = document.getElementById('minPrefillInput');
