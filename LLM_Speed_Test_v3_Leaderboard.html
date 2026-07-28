@@ -3295,14 +3295,97 @@
             return NaN;
         }
 
+        function isPrefillPointAnomalous(p) {
+            if (!p || typeof p !== 'object') return false;
+            const pSpeed = Number(p.prefill_speed ?? p.prefillSpeed);
+            const pTime = Number(p.prefill_time_ms ?? p.prefillTimeMs);
+            if (Number.isFinite(pSpeed) && pSpeed > 100000) return true;
+            if (Number.isFinite(pTime) && pTime >= 0 && pTime <= 1) return true;
+            return false;
+        }
+
+        function isDecodePointAnomalous(p) {
+            if (!p || typeof p !== 'object') return false;
+            const dSpeed = Number(p.output_speed ?? p.outputSpeed ?? p.decode_speed ?? p.decodeSpeed);
+            const dTime = Number(p.output_time_ms ?? p.outputTimeMs);
+            const itl = Number(p.avg_itl_mean ?? p.avgItlMean);
+            if (Number.isFinite(dSpeed) && dSpeed > 50000) return true;
+            if (Number.isFinite(dTime) && dTime >= 0 && dTime <= 1) return true;
+            if (Number.isFinite(dSpeed) && dSpeed > 0 && itl === 0) return true;
+            return false;
+        }
+
+        function isPointPrefillValid(p) {
+            if (!p || typeof p !== 'object') return false;
+            const speed = Number(p.prefill_speed ?? p.prefillSpeed);
+            if (!Number.isFinite(speed) || speed <= 0) return false;
+            return !isPrefillPointAnomalous(p);
+        }
+
+        function isPointDecodeValid(p) {
+            if (!p || typeof p !== 'object') return false;
+            const speed = Number(p.output_speed ?? p.outputSpeed ?? p.decode_speed ?? p.decodeSpeed);
+            if (!Number.isFinite(speed) || speed <= 0) return false;
+            return !isDecodePointAnomalous(p);
+        }
+
+        function getRowSanitizedPrefillSpeed(row) {
+            const details = Array.isArray(row.results_json) ? row.results_json : [];
+            const validSpeeds = details
+                .filter(isPointPrefillValid)
+                .map(p => Number(p.prefill_speed ?? p.prefillSpeed))
+                .filter(Number.isFinite);
+
+            if (validSpeeds.length > 0) {
+                return Math.max(...validSpeeds);
+            }
+            const fallback = pickDisplaySpeed(row.max_prefill_speed, row.avg_prefill_speed);
+            if (Number.isFinite(fallback) && fallback > 0 && fallback <= 100000) {
+                return fallback;
+            }
+            return 0;
+        }
+
+        function getRowSanitizedDecodeSpeed(row) {
+            const details = Array.isArray(row.results_json) ? row.results_json : [];
+            const validSpeeds = details
+                .filter(isPointDecodeValid)
+                .map(p => Number(p.output_speed ?? p.outputSpeed ?? p.decode_speed ?? p.decodeSpeed))
+                .filter(Number.isFinite);
+
+            if (validSpeeds.length > 0) {
+                return Math.max(...validSpeeds);
+            }
+            const fallback = pickDisplaySpeed(row.max_decode_speed, row.avg_decode_speed);
+            if (Number.isFinite(fallback) && fallback > 0 && fallback <= 50000) {
+                return fallback;
+            }
+            return 0;
+        }
+
         function getRowMetricValue(row, metricKey) {
             if (metricKey === 'max_prefill_speed') {
-                return pickDisplaySpeed(row.max_prefill_speed, row.avg_prefill_speed);
+                return getRowSanitizedPrefillSpeed(row);
             }
             if (metricKey === 'max_decode_speed') {
-                return pickDisplaySpeed(row.max_decode_speed, row.avg_decode_speed);
+                return getRowSanitizedDecodeSpeed(row);
             }
-            return NaN;
+            return 0;
+        }
+
+        function isRowAnomaly(row) {
+            const details = Array.isArray(row.results_json) ? row.results_json : [];
+            if (details.length > 0) {
+                if (details.some(p => isPrefillPointAnomalous(p) || isDecodePointAnomalous(p))) return true;
+            } else {
+                const p = pickDisplaySpeed(row.max_prefill_speed, row.avg_prefill_speed);
+                const d = pickDisplaySpeed(row.max_decode_speed, row.avg_decode_speed);
+                if (Number.isFinite(p) && p > 100000) return true;
+                if (Number.isFinite(d) && d > 50000) return true;
+            }
+            const tags = Array.isArray(row.record_tags) ? row.record_tags : [];
+            if (tags.includes('time_anomaly')) return true;
+            return false;
         }
 
         function passesMetricThresholds(row) {
@@ -3314,6 +3397,7 @@
                 const prefill = getRowMetricValue(row, 'max_prefill_speed');
                 if (!Number.isFinite(prefill) || prefill < currentMinPrefill) return false;
             }
+
             if (currentHasRunCommand) {
                 if (typeof row.run_command !== 'string' || !row.run_command.trim()) return false;
             }
@@ -4111,8 +4195,8 @@
                     const runCommandCell = hasRunCommand
                         ? `<button type="button" class="btn-run-command" data-translate-skip="true" data-run-command-label="true" onclick='openRunCommandModal(${rowIdLiteral})'>${getRunCommandLabel()}</button>`
                         : '-';
-                    const prefillValue = pickDisplaySpeed(row.max_prefill_speed, row.avg_prefill_speed);
-                    const decodeValue = pickDisplaySpeed(row.max_decode_speed, row.avg_decode_speed);
+                    const prefillValue = getRowMetricValue(row, 'max_prefill_speed');
+                    const decodeValue = getRowMetricValue(row, 'max_decode_speed');
                     const prefillText = Number.isFinite(prefillValue) ? prefillValue.toFixed(1) : '-';
                     const decodeText = Number.isFinite(decodeValue) ? decodeValue.toFixed(1) : '-';
 
@@ -4128,12 +4212,15 @@
                     }
                     const sourceTagsText = cleanTags.length ? cleanTags.map(escapeHtml).join(' | ') : '-';
 
+                    const isAnomaly = isRowAnomaly(row);
+                    const anomalyBadge = isAnomaly ? `<span style="background:#e06c75; color:#fff; padding:1px 5px; border-radius:3px; font-size:10px; margin-left:4px; font-weight:normal; display:inline-block;" title="包含测量异常数据(如ITL为0或速度失真)">⚠️ 异常</span>` : '';
+
                     tr.innerHTML = `
                         <td class="rank-cell col-rank">${formatRankLabel(rank)}</td>
                     <td class="col-time">${dateStr}</td>
                     <td class="col-share-id" style="font-family:monospace; font-size:12px; color:#5c6370; user-select:all;">${escapeHtml(row.id)}</td>
                     <td class="col-user">${userDisplay}</td>
-                    <td class="col-model" style="font-weight:bold;">${modelDisplay}</td>
+                    <td class="col-model" style="font-weight:bold;">${modelDisplay}${anomalyBadge}</td>
                     <td class="col-config" style="font-size:12px;">${configText}</td>
                     <td class="notes-cell col-notes">
                         <span class="notes-text">${notesText}</span>
