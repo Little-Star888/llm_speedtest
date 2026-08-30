@@ -459,7 +459,7 @@ async def get_results(
             safe_s = s.replace(",", "").replace(".", "").replace('"', '')
             params += f"&or=(nickname.ilike.*{safe_s}*,model_name.ilike.*{safe_s}*,user_code.eq.{safe_s.upper()})"
 
-    select_fields = "id,user_code,nickname,model_name,hardware,framework,quantization,notes,run_command,concurrency,avg_prefill_speed,avg_decode_speed,max_prefill_speed,max_decode_speed,source,record_tags,created_at,results_json"
+    select_fields = "id,user_code,nickname,model_name,hardware,framework,quantization,notes,run_command,concurrency,avg_prefill_speed,avg_decode_speed,max_prefill_speed,max_decode_speed,source,record_tags,created_at"
     resp = await _supabase_request(
         "GET", f"{SUPABASE_TABLE}?{params}&select={select_fields}",
     )
@@ -474,6 +474,20 @@ async def get_results(
         raise HTTPException(status_code=502, detail=f"查询失败: {resp.text}")
 
     return resp.json()
+
+
+@app.get("/api/results/{record_id}")
+async def get_result_detail(record_id: str):
+    """按 ID 查询单个记录的完整详情（包含 results_json）"""
+    resp = await _supabase_request(
+        "GET", f"{SUPABASE_TABLE}?id=eq.{record_id}&select=id,results_json&limit=1",
+    )
+    if resp.status_code != 200:
+        raise HTTPException(status_code=502, detail=f"查询详情失败: {resp.text}")
+    data = resp.json()
+    if not data:
+        raise HTTPException(status_code=404, detail="记录不存在")
+    return data[0]
 
 
 # ============================================================

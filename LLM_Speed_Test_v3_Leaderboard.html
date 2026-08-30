@@ -2977,9 +2977,9 @@
 
         function buildResultsSelectFields() {
             if (isLegacySchemaMode()) {
-                return 'select=id,user_code,nickname,model_name,hardware,framework,quantization,notes,concurrency,avg_prefill_speed,avg_decode_speed,results_json,created_at';
+                return 'select=id,user_code,nickname,model_name,hardware,framework,quantization,notes,concurrency,avg_prefill_speed,avg_decode_speed,created_at';
             }
-            return 'select=id,user_code,nickname,model_name,hardware,framework,quantization,notes,run_command,concurrency,avg_prefill_speed,avg_decode_speed,max_prefill_speed,max_decode_speed,source,record_tags,results_json,created_at';
+            return 'select=id,user_code,nickname,model_name,hardware,framework,quantization,notes,run_command,concurrency,avg_prefill_speed,avg_decode_speed,max_prefill_speed,max_decode_speed,source,record_tags,created_at';
         }
 
         function buildModelTagSelectFields() {
@@ -3833,8 +3833,83 @@
             document.getElementById('comparisonChartModal').style.display = 'none';
         }
 
-        function generateComparisonCharts() {
+        async function fetchResultDetails(id) {
+            const row = resultsDataMap[id];
+            if (!row) return null;
+            if (Array.isArray(row.results_json) && row.results_json.length > 0) {
+                return row;
+            }
+            const url = `${SUPABASE_URL}/rest/v1/speed_results?id=eq.${encodeURIComponent(id)}&select=id,results_json&limit=1`;
+            try {
+                const response = await fetch(url, { headers: SB_HEADERS });
+                if (response.ok) {
+                    const data = await response.json();
+                    if (Array.isArray(data) && data.length > 0) {
+                        let details = data[0].results_json ?? [];
+                        if (typeof details === 'string') {
+                            try { details = JSON.parse(details); } catch { details = []; }
+                        }
+                        if (!Array.isArray(details)) details = [];
+                        row.results_json = details;
+                    }
+                }
+            } catch (e) {
+                console.error('Failed to fetch details for id', id, e);
+            }
+            return row;
+        }
+
+        async function fetchComparisonDetails(ids) {
+            const idsToFetch = ids.filter(id => {
+                const r = resultsDataMap[id];
+                return r && (!Array.isArray(r.results_json) || r.results_json.length === 0);
+            });
+            if (idsToFetch.length === 0) return;
+
+            const inClause = idsToFetch.map(encodeURIComponent).join(',');
+            const url = `${SUPABASE_URL}/rest/v1/speed_results?id=in.(${inClause})&select=id,results_json`;
+            try {
+                const response = await fetch(url, { headers: SB_HEADERS });
+                if (response.ok) {
+                    const data = await response.json();
+                    if (Array.isArray(data)) {
+                        data.forEach(item => {
+                            const target = resultsDataMap[item.id];
+                            if (target) {
+                                let details = item.results_json ?? [];
+                                if (typeof details === 'string') {
+                                    try { details = JSON.parse(details); } catch { details = []; }
+                                }
+                                target.results_json = Array.isArray(details) ? details : [];
+                            }
+                        });
+                    }
+                }
+            } catch (e) {
+                console.error('Failed to fetch comparison details:', e);
+            }
+        }
+
+        async function generateComparisonCharts() {
             if (selectedCompareIds.size < 2) return;
+
+            const btn = document.getElementById('btnStartCompare');
+            const originalBtnText = btn ? btn.textContent : '';
+            if (btn) {
+                btn.disabled = true;
+                btn.textContent = (currentPageLanguage === PAGE_LANGUAGE.ZH ? '加载对比数据中...' : 'Loading comparison...');
+            }
+
+            try {
+                await fetchComparisonDetails(Array.from(selectedCompareIds));
+            } catch (err) {
+                console.error('Error loading comparison details:', err);
+            } finally {
+                if (btn) {
+                    btn.disabled = false;
+                    btn.textContent = originalBtnText;
+                }
+            }
             
             const CHART_COLORS = [
                 '#e6194b', '#3cb44b', '#ffe119', '#4363d8', '#f58231', 
@@ -4355,7 +4430,7 @@
         }
 
         async function viewDetails(id) {
-            const row = resultsDataMap[id];
+            let row = resultsDataMap[id];
             if (!row) return;
 
             document.getElementById('modalTitle').textContent = row.model_name;
@@ -4363,6 +4438,15 @@
                 `硬件: ${row.hardware} | 并发: ${row.concurrency} | 记录时间: ${new Date(row.created_at).toLocaleString()}`;
 
             document.getElementById('chartModal').style.display = 'block';
+
+            if (!Array.isArray(row.results_json) || row.results_json.length === 0) {
+                const dataContainer = document.getElementById('modalDataContainer');
+                if (dataContainer) {
+                    dataContainer.innerHTML = '<div style="text-align:center; padding:40px 20px; color:var(--text-muted); font-size:14px;">⏳ 正在加载详细测速数据...</div>';
+                }
+                await fetchResultDetails(id);
+                row = resultsDataMap[id] || row;
+            }
 
             const rawResults = row.results_json || [];
             // Normalize per-point schema so both snake_case and camelCase records render correctly.
