@@ -1811,7 +1811,7 @@
                     <div class="model-tags-title">快速切换模型</div>
                     <button id="toggleModelTagsBtn" class="entry-link-btn" style="font-size: 12px; padding: 2px 8px; border-radius: 4px; cursor: pointer;" type="button" onclick="toggleModelTags()">展开 ⬇️</button>
                 </div>
-                <div id="modelTagsSubtitle" class="model-tags-subtitle">只显示记录数大于等于 3 条的模型，点击词条即可切换排行榜</div>
+                <div id="modelTagsSubtitle" class="model-tags-subtitle">只显示 8 个测试以上的模型，点击词条即可切换排行榜</div>
             </div>
             <div id="modelTagBar" class="model-tag-bar collapsed"></div>
         </div>
@@ -1990,7 +1990,7 @@
         const SORTABLE_FIELDS = ['created_at', 'max_prefill_speed', 'max_decode_speed'];
         const LEADERBOARD_SCHEMA = { MODERN: 'modern', LEGACY: 'legacy' };
         let currentSchemaMode = LEADERBOARD_SCHEMA.MODERN;
-        const DEFAULT_MODEL_TAG_MIN_COUNT = 3;
+        const DEFAULT_MODEL_TAG_MIN_COUNT = 8;
         const MODEL_TAG_MIN_COUNT = getModelTagMinCountFromUrl();
         const MODEL_TAG_PAGE_SIZE = 1000;
         const MODEL_TAG_FETCH_LIMIT = 3000;
@@ -2956,7 +2956,7 @@
         function updateModelTagSubtitle() {
             const subtitle = document.getElementById('modelTagsSubtitle');
             if (!subtitle) return;
-            subtitle.textContent = `只显示记录数大于等于 ${MODEL_TAG_MIN_COUNT} 条的模型，点击词条即可切换排行榜`;
+            subtitle.textContent = `只显示 ${MODEL_TAG_MIN_COUNT} 个测试以上的模型，点击词条即可切换排行榜`;
         }
 
         function isLegacySchemaMode() {
@@ -3136,7 +3136,44 @@
             return rows;
         }
 
+        const MODEL_TAGS_CACHE_KEY = 'llm_speedtest_model_tags_cache_v1';
+        const MODEL_TAGS_CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes cache
+
+        async function fetchModelTagsRpc(signal) {
+            const url = `${SUPABASE_URL}/rest/v1/rpc/get_model_tags`;
+            const response = await fetch(url, {
+                method: 'POST',
+                signal,
+                headers: { ...SB_HEADERS, 'Content-Type': 'application/json' },
+                body: JSON.stringify({ min_count: MODEL_TAG_MIN_COUNT })
+            });
+            if (!response.ok) {
+                return null;
+            }
+            const data = await response.json();
+            if (Array.isArray(data)) {
+                return data
+                    .filter(item => item && item.name && typeof item.name === 'string')
+                    .map(item => ({ name: item.name.trim(), count: Number(item.count) }))
+                    .filter(item => item.name && Number.isFinite(item.count) && item.count >= MODEL_TAG_MIN_COUNT)
+                    .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name, 'zh-CN'));
+            }
+            return null;
+        }
+
         async function fetchModelTags(signal) {
+            // 1. Try high-performance Postgres RPC first (1 single request, <1KB payload, ~20ms)
+            try {
+                const rpcTags = await fetchModelTagsRpc(signal);
+                if (rpcTags && Array.isArray(rpcTags)) {
+                    return rpcTags;
+                }
+            } catch (e) {
+                if (e.name === 'AbortError') throw e;
+                console.warn('RPC get_model_tags not available, falling back to paginated scan:', e);
+            }
+
+            // 2. Fallback to client-side paginated scan if RPC function does not exist yet
             const counts = new Map();
             let offset = 0;
 
@@ -3178,7 +3215,22 @@
                 .map(([name, count]) => ({ name, count }));
         }
 
-        async function refreshModelTags() {
+        async function refreshModelTags(forceRefresh = false) {
+            // Check session cache first for instant UI response
+            if (!forceRefresh) {
+                try {
+                    const cachedRaw = sessionStorage.getItem(MODEL_TAGS_CACHE_KEY);
+                    if (cachedRaw) {
+                        const parsed = JSON.parse(cachedRaw);
+                        if (parsed && Array.isArray(parsed.tags) && (Date.now() - (parsed.timestamp || 0)) < MODEL_TAGS_CACHE_TTL_MS && parsed.minCount === MODEL_TAG_MIN_COUNT) {
+                            currentModelTags = parsed.tags;
+                            renderModelTagBar();
+                            return;
+                        }
+                    }
+                } catch (_) {}
+            }
+
             if (modelTagFetchController) {
                 modelTagFetchController.abort();
             }
@@ -3186,6 +3238,13 @@
 
             try {
                 currentModelTags = await fetchModelTags(modelTagFetchController.signal);
+                try {
+                    sessionStorage.setItem(MODEL_TAGS_CACHE_KEY, JSON.stringify({
+                        tags: currentModelTags,
+                        timestamp: Date.now(),
+                        minCount: MODEL_TAG_MIN_COUNT
+                    }));
+                } catch (_) {}
             } catch (e) {
                 if (e.name === 'AbortError') return;
                 currentModelTags = [];
