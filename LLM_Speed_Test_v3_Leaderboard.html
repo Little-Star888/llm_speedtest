@@ -3072,15 +3072,15 @@
             return `order=${sortField}.${currentSortDirection}.nullslast`;
         }
 
-        function buildSupabaseResultsUrl(mode, offset, limit, personalUserCode) {
+        function buildSupabaseResultsUrl(mode, offset, limit, personalUserCode, applySort = true) {
             const sbBase = SUPABASE_URL + '/rest/v1/speed_results';
             const queryParts = [
                 buildResultsSelectFields(),
-                'order=created_at.desc',
+                applySort ? buildSortParam() : 'order=created_at.desc',
                 `limit=${limit}`,
                 `offset=${offset}`,
                 ...buildModeFilterParams(mode, personalUserCode),
-                ...buildGlobalFilterParams(false)
+                ...buildGlobalFilterParams(true)
             ];
             return `${sbBase}?${queryParts.join('&')}`;
         }
@@ -3097,8 +3097,43 @@
             return `${sbBase}?${queryParts.join('&')}`;
         }
 
+        async function fetchLeaderboardPage(mode, page, pageSize, signal, personalUserCode) {
+            const offset = (page - 1) * pageSize;
+            let url = buildSupabaseResultsUrl(mode, offset, pageSize, personalUserCode, true);
+            const headers = { ...SB_HEADERS, 'Prefer': 'count=exact' };
+            let response = await fetch(url, { signal, headers });
+            if (!response.ok) {
+                const detail = await readResponseErrorDetail(response);
+                if (response.status === 400 && !isLegacySchemaMode() && isSchemaCompatibilityError(detail)) {
+                    currentSchemaMode = LEADERBOARD_SCHEMA.LEGACY;
+                    console.warn('Leaderboard fallback to legacy schema mode:', detail);
+                    url = buildSupabaseResultsUrl(mode, offset, pageSize, personalUserCode, true);
+                    response = await fetch(url, { signal, headers });
+                }
+            }
+            if (!response.ok) {
+                const detail = await readResponseErrorDetail(response);
+                throw new Error(`HTTP error ${response.status}${detail ? `: ${detail}` : ''}`);
+            }
+
+            const rows = await response.json();
+            const rangeHeader = response.headers.get('content-range'); // e.g. "0-99/1295" or "*/0"
+            let totalCount = 0;
+            if (rangeHeader) {
+                const match = rangeHeader.match(/\/(\d+)/);
+                if (match) totalCount = parseInt(match[1], 10);
+            } else {
+                totalCount = Array.isArray(rows) ? rows.length : 0;
+            }
+
+            return {
+                rows: Array.isArray(rows) ? rows : [],
+                total: totalCount
+            };
+        }
+
         async function fetchLeaderboardRows(mode, offset, limit, signal, personalUserCode) {
-            let url = buildSupabaseResultsUrl(mode, offset, limit, personalUserCode);
+            let url = buildSupabaseResultsUrl(mode, offset, limit, personalUserCode, false);
             let response = await fetch(url, { signal, headers: SB_HEADERS });
             if (response.ok) return await response.json();
 
@@ -3106,7 +3141,7 @@
             if (response.status === 400 && !isLegacySchemaMode() && isSchemaCompatibilityError(detail)) {
                 currentSchemaMode = LEADERBOARD_SCHEMA.LEGACY;
                 console.warn('Leaderboard fallback to legacy schema mode:', detail);
-                url = buildSupabaseResultsUrl(mode, offset, limit, personalUserCode);
+                url = buildSupabaseResultsUrl(mode, offset, limit, personalUserCode, false);
                 response = await fetch(url, { signal, headers: SB_HEADERS });
                 if (response.ok) return await response.json();
                 const retryDetail = await readResponseErrorDetail(response);
@@ -4274,20 +4309,18 @@
                     }
                 }
 
-                let allData = await fetchAllLeaderboardRows(mode, signal, personalUserCode);
-                allData = normalizeLeaderboardRows(allData);
-                const sortedFiltered = applyMetricFilterAndSort(allData);
-                const totalMatched = sortedFiltered.length;
+                const pageRes = await fetchLeaderboardPage(mode, currentPage, currentPageSize, signal, personalUserCode);
+                const rawRows = pageRes.rows;
+                const totalMatched = pageRes.total;
 
-                if (!sortedFiltered || totalMatched === 0) {
+                if (!rawRows || rawRows.length === 0 || totalMatched === 0) {
                     loading.textContent = '暂无数据 😥';
                     return;
                 }
 
+                const data = normalizeLeaderboardRows(rawRows);
                 const totalPages = Math.max(1, Math.ceil(totalMatched / currentPageSize));
-                if (currentPage > totalPages) currentPage = totalPages;
                 const offset = (currentPage - 1) * currentPageSize;
-                const data = sortedFiltered.slice(offset, offset + currentPageSize);
 
                 resultsDataMap = {};
 
@@ -4376,7 +4409,7 @@
                 });
 
                 if (mode === 'search_id' && pendingDeepLinkShareId) {
-                    const matched = sortedFiltered.find(row => row.id === pendingDeepLinkShareId);
+                    const matched = data.find(row => row.id === pendingDeepLinkShareId) || resultsDataMap[pendingDeepLinkShareId];
                     pendingDeepLinkShareId = null;
                     if (matched) viewDetails(matched.id);
                 }
