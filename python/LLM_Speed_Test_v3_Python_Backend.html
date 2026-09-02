@@ -2282,6 +2282,87 @@
         let currentModelName = '/model';
         let api_key = '';
         let notes = '';
+        let currentTestHistoryId = null;
+
+        function syncNotesToUI() {
+            const notesInput = document.getElementById('notes');
+            const rawVal = notesInput ? notesInput.value.trim() : '';
+            const t = (typeof translations !== 'undefined' && translations[currentLang]) ? translations[currentLang] : (translations?.zh || {});
+            const modelInput = document.getElementById('modelName');
+            const modelNameVal = (modelInput ? modelInput.value.trim() : '') || currentModelName || '/model';
+            const concurrency = document.getElementById('concurrency')?.value || currentConcurrency || 1;
+            const timeout = document.getElementById('timeout')?.value || 120000;
+
+            if (rawVal) {
+                notes = rawVal;
+            } else {
+                const isZh = currentLang === 'zh';
+                const apiName = currentApiType === 'openai' ? (isZh ? 'OpenAI兼容接口' : 'OpenAI compatible API') : (isZh ? 'Ollama接口' : 'Ollama API');
+                notes = isZh
+                    ? `无用户备注，接口: ${apiName} ，模型: ${modelNameVal}`
+                    : `No user notes, API: ${apiName} , Model: ${modelNameVal}`;
+            }
+
+            try {
+                localStorage.setItem('llmPerfTestNotes', rawVal);
+            } catch (e) {
+                console.warn('无法保存备注到 localStorage:', e);
+            }
+
+            // 1. 实时更新结果表格上方的测速备注标题栏
+            const notesElem = document.getElementById('currentTestNotesMessage') || document.querySelector('#results p.notes');
+            if (notesElem) {
+                notesElem.textContent = `${t.labelNotesPrefix || '备注：'}${notes} | ${t.labelConcurrencyPrefix || '并发:'} ${concurrency} | ${t.labelTimeoutPrefix || '超时:'} ${timeout / 1000}s`;
+            }
+
+            // 2. 实时更新图表标题
+            const chartSuffix = ` - ${modelNameVal} - ${t.chartConcurrency || '并发:'}${concurrency} - ${notes}`;
+            if (prefillChartInstance && prefillChartInstance.options?.plugins?.title) {
+                prefillChartInstance.options.plugins.title.text = `${t.chartTitlePrefillThroughput || 'Prefill 吞吐量'}${chartSuffix}`;
+                prefillChartInstance.update('none');
+            }
+            if (outputChartInstance && outputChartInstance.options?.plugins?.title) {
+                outputChartInstance.options.plugins.title.text = `${t.chartTitleDecodeThroughput || 'Decode 吞吐量'}${chartSuffix}`;
+                outputChartInstance.update('none');
+            }
+            if (ttftChartInstance && ttftChartInstance.options?.plugins?.title) {
+                ttftChartInstance.options.plugins.title.text = `${t.chartTitleTtft || 'TTFT 首字延迟'}${chartSuffix}`;
+                ttftChartInstance.update('none');
+            }
+            if (itlChartInstance && itlChartInstance.options?.plugins?.title) {
+                itlChartInstance.options.plugins.title.text = `${t.chartTitleItl || 'ITL 均值延迟'}${chartSuffix}`;
+                itlChartInstance.update('none');
+            }
+
+            // 3. 实时更新 Markdown 导出内容
+            if (Array.isArray(testResultsData) && testResultsData.length > 0 && typeof markdownOutputHidden !== 'undefined' && markdownOutputHidden) {
+                const apiTypeText = currentApiType === 'openai' ? (t.apiOpenAI || 'OpenAI兼容接口') : (t.apiOllama || 'Ollama接口');
+                let markdownTable = `## ${t.mdTestResults || '测试结果'} (${apiTypeText} - ${modelNameVal})\n\n`;
+                markdownTable += `${t.mdNotes || '备注：'}${notes} | ${t.mdConcurrency || '并发:'} ${concurrency}\n\n`;
+                markdownTable += `| ${(t.tableHeaderPromptLen || '提示词长度').replace('<br>', ' ')} | ${(t.tableHeaderTTFT || 'TTFT(ms)').replace('<br>', ' ')} | ${(t.tableHeaderITL || 'ITL平均(ms)').replace('<br>', ' ')} | ${(t.tableHeaderPrefillSpeed || '预填充速度').replace('<br>', ' ')} | ${(t.tableHeaderOutputSpeed || '输出速度').replace('<br>', ' ')} | ${(t.tableHeaderStatus || '状态').replace('<br>', ' ')} |\n`;
+                markdownTable += `|---------------------|----------|-------------|-------------------------|-------------------|--------|\n`;
+                testResultsData.forEach(res => {
+                    markdownTable += `| ${res.promptLength} | ${res.avgTtftMs !== null && res.avgTtftMs !== undefined ? Number(res.avgTtftMs).toFixed(2) : (res.prefillTimeMs ?? 'N/A')} | ${res.avgItlMean !== null && res.avgItlMean !== undefined ? Number(res.avgItlMean).toFixed(2) : (res.outputTimeMs ?? 'N/A')} | ${res.prefillSpeed} | ${res.outputSpeed} | ${res.status} |\n`;
+                });
+                markdownOutputHidden.value = markdownTable;
+            }
+
+            // 4. 同步更新当前关联的历史记录（若有）
+            if (currentTestHistoryId) {
+                try {
+                    const history = loadHistoryFromStorage();
+                    const record = history.find(r => r.id === currentTestHistoryId);
+                    if (record) {
+                        record.notes = rawVal;
+                        if (record.config) record.config.notes = rawVal;
+                        localStorage.setItem(HISTORY_STORAGE_KEY, JSON.stringify(history));
+                    }
+                } catch (e) {
+                    console.warn('无法同步备注到历史记录:', e);
+                }
+            }
+        }
+
         let currentConcurrency = 1;
         let _customModelNameCache = {};
         let _isFetchingCustomModels = false;
@@ -2560,6 +2641,7 @@
 
                 // 添加到历史记录数组开头（最新的在最前面）
                 history.unshift(historyRecord);
+                currentTestHistoryId = historyRecord.id;
 
                 // 限制历史记录数量
                 if (history.length > MAX_HISTORY_RECORDS) {
@@ -4784,6 +4866,7 @@ async function processOllamaResponse(response, promptLength) {
 
             const notesMessage = document.createElement('p');
             notesMessage.className = 'notes';
+            notesMessage.id = 'currentTestNotesMessage';
             notesMessage.textContent = `${t.labelNotesPrefix}${notes} | ${t.labelConcurrencyPrefix} ${concurrency} | ${t.labelTimeoutPrefix} ${timeout / 1000}s`;
             resultsDiv.appendChild(notesMessage);
 
@@ -6302,6 +6385,9 @@ async function processOllamaResponse(response, promptLength) {
             document.getElementById('frequencyPenaltyInput').value = savedFrequencyPenalty || d_frequency_penalty;
             scheduleModelFetch();
 
+            document.getElementById('notes')?.addEventListener('input', syncNotesToUI);
+            document.getElementById('notes')?.addEventListener('change', syncNotesToUI);
+
             // 提示用户已加载配置
             if (savedApiUrl) {
                 console.log('[配置加载] 已从localStorage恢复上次的配置');
@@ -6570,6 +6656,7 @@ async function processOllamaResponse(response, promptLength) {
             // 填充备注字段
             document.getElementById('notes').value = record.notes || '';
             document.getElementById('runCommand').value = record.config?.runCommand || '';
+            currentTestHistoryId = record.id;
 
             // 更新全局变量（用于图表标题）
             currentModelName = record.config.modelName || '/model';
@@ -6587,6 +6674,7 @@ async function processOllamaResponse(response, promptLength) {
             // 创建备注信息
             const notesMessage = document.createElement('p');
             notesMessage.className = 'notes';
+            notesMessage.id = 'currentTestNotesMessage';
             notesMessage.textContent = `${t.labelNotesPrefix}${record.notes} | ${t.labelConcurrencyPrefix} ${record.config.concurrency} | ${t.labelTimeoutPrefix} ${record.config.timeout / 1000}s`;
             resultsDiv.appendChild(notesMessage);
 
@@ -6924,6 +7012,7 @@ async function processOllamaResponse(response, promptLength) {
             // 更新历史记录按钮文本
             const t = translations[lang];
             viewHistoryBtn.textContent = t.historyBtn;
+            syncNotesToUI();
         };
 
         //
