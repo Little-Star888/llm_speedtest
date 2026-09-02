@@ -357,6 +357,67 @@
             word-break: break-word;
         }
 
+        .detail-command-accordion {
+            background: var(--bg-panel);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            margin-bottom: 16px;
+            font-size: 13px;
+            overflow: hidden;
+        }
+
+        .detail-command-accordion summary {
+            padding: 10px 14px;
+            cursor: pointer;
+            user-select: none;
+            color: var(--text-muted);
+            font-weight: 500;
+            outline: none;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            transition: background 0.15s ease, color 0.15s ease;
+            list-style: none;
+        }
+
+        .detail-command-accordion summary::-webkit-details-marker {
+            display: none;
+        }
+
+        .detail-command-accordion summary:hover {
+            background: rgba(255, 255, 255, 0.04);
+            color: var(--text-main);
+        }
+
+        .detail-command-accordion[open] summary {
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .detail-command-accordion summary .detail-command-arrow {
+            display: inline-block;
+            transition: transform 0.2s ease;
+            font-size: 10px;
+            color: var(--accent-yellow);
+        }
+
+        .detail-command-accordion[open] summary .detail-command-arrow {
+            transform: rotate(90deg);
+        }
+
+        .detail-command-body {
+            padding: 12px 14px;
+            background: rgba(0, 0, 0, 0.2);
+        }
+
+        .detail-command-body .run-command-block {
+            margin: 0;
+            max-height: 360px;
+            overflow-y: auto;
+            border: none;
+            padding: 0;
+            background: transparent;
+        }
+
         .close-btn {
             color: var(--text-muted);
             float: right;
@@ -2279,6 +2340,48 @@
             if (modalTitle) modalTitle.textContent = getRunCommandLabel();
             const copyBtn = document.getElementById('copyRunCommandBtn');
             if (copyBtn) copyBtn.textContent = currentPageLanguage === PAGE_LANGUAGE.EN ? 'Copy Command' : '复制命令';
+            document.querySelectorAll('[data-copy-command-btn="true"]').forEach((element) => {
+                element.textContent = currentPageLanguage === PAGE_LANGUAGE.EN ? 'Copy Command' : '复制命令';
+            });
+            document.querySelectorAll('.detail-command-accordion').forEach((detailsEl) => {
+                handleDetailCommandToggle(detailsEl);
+            });
+        }
+
+        function handleDetailCommandToggle(detailsEl) {
+            if (!detailsEl) return;
+            const hint = detailsEl.querySelector('[data-detail-command-hint]');
+            const label = detailsEl.querySelector('[data-detail-command-label]');
+            if (label) {
+                label.textContent = getRunCommandLabel();
+            }
+            if (hint) {
+                if (detailsEl.open) {
+                    hint.textContent = currentPageLanguage === PAGE_LANGUAGE.EN ? '(Click to collapse)' : '(点击收起)';
+                } else {
+                    hint.textContent = currentPageLanguage === PAGE_LANGUAGE.EN ? '(Click to expand)' : '(点击展开)';
+                }
+            }
+        }
+
+        async function copyDetailRunCommand(event, btn) {
+            if (event) {
+                event.stopPropagation();
+                event.preventDefault();
+            }
+            const raw = btn ? btn.getAttribute('data-run-command') : '';
+            const cmd = raw ? decodeURIComponent(raw) : '';
+            if (!cmd) return;
+            try {
+                await navigator.clipboard.writeText(cmd);
+                const prev = btn.textContent;
+                btn.textContent = currentPageLanguage === PAGE_LANGUAGE.EN ? 'Copied' : '已复制';
+                setTimeout(() => {
+                    btn.textContent = prev;
+                }, 1200);
+            } catch {
+                window.prompt(currentPageLanguage === PAGE_LANGUAGE.EN ? 'Copy Run Command:' : '复制启动命令：', cmd);
+            }
         }
 
         function initializePageTranslation() {
@@ -4612,11 +4715,22 @@
             // ================== Build Detail Data Table ==================
             const dataContainer = document.getElementById('modalDataContainer');
             const runCommandText = row.run_command ? escapeHtml(row.run_command) : '';
+            const isEn = currentPageLanguage === PAGE_LANGUAGE.EN;
             const runCommandHtml = runCommandText ? `
-                <div style="background:var(--bg-panel); border:1px solid var(--border-color); border-radius:6px; padding:14px; margin-bottom:16px; font-size:13px;">
-                    <div style="color:var(--text-muted); margin-bottom:8px;">启动命令 / Run Command</div>
-                    <pre style="margin:0; white-space:pre-wrap; word-break:break-word; font-family:monospace; color:var(--text-main);">${runCommandText}</pre>
-                </div>
+                <details class="detail-command-accordion" ontoggle="handleDetailCommandToggle(this)">
+                    <summary>
+                        <span style="display:inline-flex; align-items:center; gap:8px;">
+                            <span class="detail-command-arrow">▶</span>
+                            <span style="color:var(--accent-yellow);">⚡</span>
+                            <span data-translate-skip="true" data-detail-command-label="true">${isEn ? 'Run Command' : '启动命令'}</span>
+                            <span style="font-size:12px; color:var(--text-muted); font-weight:normal;" data-detail-command-hint="true">${isEn ? '(Click to expand)' : '(点击展开)'}</span>
+                        </span>
+                        <button type="button" class="btn-run-command" onclick="copyDetailRunCommand(event, this)" data-copy-command-btn="true" data-run-command="${encodeURIComponent(row.run_command)}" style="font-size:11px; padding:2px 8px;">${isEn ? 'Copy Command' : '复制命令'}</button>
+                    </summary>
+                    <div class="detail-command-body">
+                        <pre class="run-command-block" data-translate-skip="true">${runCommandText}</pre>
+                    </div>
+                </details>
             ` : '';
             let tableHtml = `${runCommandHtml}${anomalySummaryHtml}
             <table style="width:100%; border-collapse:collapse; margin-bottom:20px; font-size:13px;">
